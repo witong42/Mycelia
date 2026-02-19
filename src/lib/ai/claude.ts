@@ -88,7 +88,8 @@ export async function streamResponse(
 	return fullResponse;
 }
 
-/** Make a non-streaming call to Claude (for extraction). */
+/** Make a non-streaming call to Claude (for extraction/journal).
+ *  Retries up to 2 times on transient errors (429, 500, 529, network). */
 export async function callClaude(
 	messages: ClaudeMessage[],
 	systemPrompt: string
@@ -96,27 +97,55 @@ export async function callClaude(
 	const s = get(settings);
 	if (!s.apiKey) throw new Error('API key not configured');
 
-	const response = await fetch(API_URL, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'x-api-key': s.apiKey,
-			'anthropic-version': '2023-06-01',
-			'anthropic-dangerous-direct-browser-access': 'true'
-		},
-		body: JSON.stringify({
-			model: s.extractionModel,
-			max_tokens: 4096,
-			system: systemPrompt,
-			messages
-		})
-	});
+	const MAX_RETRIES = 2;
+	let lastError: Error | null = null;
 
-	if (!response.ok) {
-		const error = await response.text();
-		throw new Error(`Claude API error (${response.status}): ${error}`);
+	for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+		if (attempt > 0) {
+			const delay = 1000 * attempt; // 1s, 2s
+			console.log(`[claude] Retry ${attempt}/${MAX_RETRIES} after ${delay}ms`);
+			await new Promise((r) => setTimeout(r, delay));
+		}
+
+		try {
+			const response = await fetch(API_URL, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': s.apiKey,
+					'anthropic-version': '2023-06-01',
+					'anthropic-dangerous-direct-browser-access': 'true'
+				},
+				body: JSON.stringify({
+					model: s.extractionModel,
+					max_tokens: 4096,
+					system: systemPrompt,
+					messages
+				})
+			});
+
+			// Don't retry client errors (400, 401, 403) — only transient ones
+			if (!response.ok) {
+				const error = await response.text();
+				const status = response.status;
+				if (status === 429 || status === 500 || status === 529) {
+					lastError = new Error(`Claude API error (${status}): ${error}`);
+					continue; // Retry
+				}
+				throw new Error(`Claude API error (${status}): ${error}`);
+			}
+
+			const result = await response.json();
+			return result.content[0]?.text || '';
+		} catch (err) {
+			if (err instanceof TypeError) {
+				// Network error (fetch failed) — retryable
+				lastError = err;
+				continue;
+			}
+			throw err; // Non-retryable error
+		}
 	}
 
-	const result = await response.json();
-	return result.content[0]?.text || '';
+	throw lastError || new Error('Claude API call failed after retries');
 }

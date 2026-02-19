@@ -12,7 +12,7 @@
 		finalizeLastMessage
 	} from '$lib/stores/chat';
 	import { streamResponse } from '$lib/ai/claude';
-	import { isRetrievalQuery, buildRagContext } from '$lib/ai/rag';
+	import { buildRagContext, invalidateRagCache } from '$lib/ai/rag';
 	import { writeJournalEntry } from '$lib/vault/journal';
 	import { extractKnowledge } from '$lib/ai/extraction';
 
@@ -41,15 +41,11 @@
 		addAssistantMessage();
 
 		try {
-			// Check if this is a retrieval query and build RAG context
-			let systemPrompt: string | undefined;
-			if (isRetrievalQuery(text)) {
-				const ragContext = await buildRagContext();
-				if (ragContext) systemPrompt = ragContext;
-			}
+			// Include relevant vault notes as context, scored by query relevance
+			const systemPrompt = (await buildRagContext(text)) || undefined;
 
 			const fullResponse = await streamResponse(
-				$messages.slice(0, -1), // exclude the empty assistant message
+				$messages.slice(0, -1),
 				(chunk) => {
 					appendToLastMessage(chunk);
 					scrollToBottom();
@@ -59,13 +55,12 @@
 
 			finalizeLastMessage();
 
-			// Background tasks — run in parallel, surface errors visibly
-			writeJournalEntry(text, fullResponse).catch((err) =>
-				showBgError('Journal write failed', err)
-			);
-			extractKnowledge($messages).catch((err) =>
-				showBgError('Extraction failed', err)
-			);
+			writeJournalEntry(text, fullResponse)
+				.then(() => invalidateRagCache())
+				.catch((err) => showBgError('Journal write failed', err));
+			extractKnowledge($messages)
+				.then(() => invalidateRagCache())
+				.catch((err) => showBgError('Extraction failed', err));
 		} catch (error) {
 			appendToLastMessage(
 				`\n\n*Error: ${error instanceof Error ? error.message : 'Something went wrong'}*`
@@ -84,14 +79,14 @@
 </script>
 
 <div class="flex flex-col h-full relative">
-	<!-- Background error toast -->
+	<!-- Error toast -->
 	{#if bgError}
 		<div class="absolute top-3 right-3 z-50 max-w-sm bg-red-900/80 text-red-200 text-xs px-4 py-2.5 rounded-lg border border-red-800 shadow-lg">
 			{bgError}
 		</div>
 	{/if}
 
-	<!-- Chat messages -->
+	<!-- Messages -->
 	<div
 		bind:this={chatContainer}
 		class="flex-1 overflow-y-auto px-4 py-6"
@@ -99,12 +94,12 @@
 		<div class="max-w-3xl mx-auto">
 			{#if $messages.length === 0}
 				<div class="flex flex-col items-center justify-center h-full min-h-[60vh] text-center">
-					<div class="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mb-4">
-						<span class="text-accent text-2xl font-bold">M</span>
+					<div class="w-14 h-14 rounded-full bg-accent/15 flex items-center justify-center mb-5">
+						<span class="text-accent text-xl font-bold">M</span>
 					</div>
-					<h2 class="text-lg font-medium text-text mb-2">Start talking</h2>
-					<p class="text-text-secondary text-sm max-w-sm">
-						Tell me about your day, your ideas, or anything on your mind. I'll organize it all into your knowledge base automatically.
+					<h2 class="text-base font-medium text-text mb-2">What's on your mind?</h2>
+					<p class="text-text-secondary text-sm max-w-sm leading-relaxed">
+						Share your thoughts, ideas, or anything you're working on. I'll organize it into your knowledge base.
 					</p>
 				</div>
 			{:else}
@@ -113,13 +108,14 @@
 				{/each}
 
 				{#if $isLoading && $messages[$messages.length - 1]?.content === ''}
-					<div class="flex justify-start mb-3">
-						<div class="bg-assistant-bubble border border-border rounded-2xl rounded-bl-md px-4 py-3">
-							<div class="flex gap-1">
-								<span class="w-2 h-2 bg-text-secondary rounded-full animate-bounce"></span>
-								<span class="w-2 h-2 bg-text-secondary rounded-full animate-bounce [animation-delay:150ms]"></span>
-								<span class="w-2 h-2 bg-text-secondary rounded-full animate-bounce [animation-delay:300ms]"></span>
-							</div>
+					<div class="flex gap-3 mb-6">
+						<div class="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center shrink-0">
+							<span class="text-accent text-[10px] font-bold">M</span>
+						</div>
+						<div class="flex gap-1 pt-2">
+							<span class="w-1.5 h-1.5 bg-text-secondary rounded-full animate-bounce"></span>
+							<span class="w-1.5 h-1.5 bg-text-secondary rounded-full animate-bounce [animation-delay:150ms]"></span>
+							<span class="w-1.5 h-1.5 bg-text-secondary rounded-full animate-bounce [animation-delay:300ms]"></span>
 						</div>
 					</div>
 				{/if}
@@ -127,6 +123,11 @@
 		</div>
 	</div>
 
+	<!-- Gradient fade -->
+	<div class="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-bg via-bg/60 to-transparent pointer-events-none"></div>
+
 	<!-- Input -->
-	<ChatInput onsend={handleSend} />
+	<div class="relative z-10">
+		<ChatInput onsend={handleSend} />
+	</div>
 </div>

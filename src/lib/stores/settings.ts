@@ -3,7 +3,7 @@
 import { writable, get } from 'svelte/store';
 import { load, type Store } from '@tauri-apps/plugin-store';
 
-export type WritingPerspective = 'second' | 'first';
+export type WritingPerspective = 'second' | 'first' | 'plural';
 
 export interface Settings {
 	apiKey: string;
@@ -11,6 +11,7 @@ export interface Settings {
 	model: string;
 	extractionModel: string;
 	writingPerspective: WritingPerspective;
+	journalFormat: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -18,7 +19,8 @@ const DEFAULT_SETTINGS: Settings = {
 	vaultPath: '',
 	model: 'claude-sonnet-4-6',
 	extractionModel: 'claude-haiku-4-5-20251001',
-	writingPerspective: 'second'
+	writingPerspective: 'second',
+	journalFormat: 'YYYY-MM-DD'
 };
 
 export const settings = writable<Settings>(DEFAULT_SETTINGS);
@@ -34,7 +36,8 @@ export async function initSettings(): Promise<Settings> {
 			vaultPath: '',
 			model: DEFAULT_SETTINGS.model,
 			extractionModel: DEFAULT_SETTINGS.extractionModel,
-			writingPerspective: DEFAULT_SETTINGS.writingPerspective
+			writingPerspective: DEFAULT_SETTINGS.writingPerspective,
+			journalFormat: DEFAULT_SETTINGS.journalFormat
 		},
 		autoSave: true
 	});
@@ -46,8 +49,10 @@ export async function initSettings(): Promise<Settings> {
 		((await store.get('extractionModel')) as string) || DEFAULT_SETTINGS.extractionModel;
 	const writingPerspective =
 		((await store.get('writingPerspective')) as WritingPerspective) || DEFAULT_SETTINGS.writingPerspective;
+	const journalFormat =
+		((await store.get('journalFormat')) as string) || DEFAULT_SETTINGS.journalFormat;
 
-	const s: Settings = { apiKey, vaultPath, model, extractionModel, writingPerspective };
+	const s: Settings = { apiKey, vaultPath, model, extractionModel, writingPerspective, journalFormat };
 	settings.set(s);
 	isConfigured.set(!!apiKey && !!vaultPath);
 	return s;

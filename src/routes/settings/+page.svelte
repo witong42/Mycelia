@@ -4,14 +4,61 @@
 	import { clearMessages } from '$lib/stores/chat';
 	import { open } from '@tauri-apps/plugin-dialog';
 	import { ensureVaultStructure } from '$lib/vault/filesystem';
+	import { JOURNAL_FORMATS } from '$lib/vault/journal';
 
 	let showKey = $state(false);
 	let saved = $state('');
+	let keyError = $state('');
+	let keyValidating = $state(false);
 
 	async function updateApiKey(e: Event) {
-		const value = (e.target as HTMLInputElement).value;
+		const value = (e.target as HTMLInputElement).value.trim();
+		keyError = '';
+
+		if (!value) {
+			await saveSetting('apiKey', '');
+			return;
+		}
+
+		if (!value.startsWith('sk-ant-')) {
+			keyError = 'Key should start with sk-ant-';
+			return;
+		}
+
+		// Save immediately, then validate in background
 		await saveSetting('apiKey', value);
-		flash('API key saved');
+		keyValidating = true;
+
+		try {
+			const res = await fetch('https://api.anthropic.com/v1/messages', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': value,
+					'anthropic-version': '2023-06-01',
+					'anthropic-dangerous-direct-browser-access': 'true'
+				},
+				body: JSON.stringify({
+					model: 'claude-haiku-4-5-20251001',
+					max_tokens: 1,
+					messages: [{ role: 'user', content: 'hi' }]
+				})
+			});
+
+			if (res.ok || res.status === 200) {
+				flash('API key verified');
+			} else if (res.status === 401) {
+				keyError = 'Invalid API key';
+			} else if (res.status === 403) {
+				keyError = 'API key lacks permissions';
+			} else {
+				flash('API key saved (could not verify)');
+			}
+		} catch {
+			flash('API key saved (offline — will verify on first use)');
+		} finally {
+			keyValidating = false;
+		}
 	}
 
 	async function changeVault() {
@@ -40,9 +87,15 @@
 	}
 
 	async function updatePerspective(e: Event) {
-		const value = (e.target as HTMLSelectElement).value as 'first' | 'second';
+		const value = (e.target as HTMLSelectElement).value as 'first' | 'second' | 'plural';
 		await saveSetting('writingPerspective', value);
 		flash('Writing perspective updated');
+	}
+
+	async function updateJournalFormat(e: Event) {
+		const value = (e.target as HTMLSelectElement).value;
+		await saveSetting('journalFormat', value);
+		flash('Journal format updated');
 	}
 
 	function flash(msg: string) {
@@ -64,8 +117,8 @@
 					type={showKey ? 'text' : 'password'}
 					value={$settings.apiKey}
 					onchange={updateApiKey}
-					class="flex-1 bg-bg-tertiary text-text border border-border rounded-lg px-4 py-2.5
-						text-sm focus:outline-none focus:border-accent"
+					class="flex-1 bg-bg-tertiary text-text border rounded-lg px-4 py-2.5
+						text-sm focus:outline-none {keyError ? 'border-red-500 focus:border-red-500' : 'border-border focus:border-accent'}"
 				/>
 				<button
 					onclick={() => (showKey = !showKey)}
@@ -75,11 +128,16 @@
 					{showKey ? 'Hide' : 'Show'}
 				</button>
 			</div>
+			{#if keyError}
+				<p class="text-[11px] text-red-400">{keyError}</p>
+			{:else if keyValidating}
+				<p class="text-[11px] text-text-secondary">Verifying key...</p>
+			{/if}
 		</div>
 
 		<!-- Vault Path -->
 		<div class="space-y-2">
-			<label class="block text-xs text-text-secondary">Vault Directory</label>
+			<span class="block text-xs text-text-secondary">Vault Directory</span>
 			<div class="flex gap-2">
 				<div class="flex-1 bg-bg-tertiary border border-border rounded-lg px-4 py-2.5 text-sm text-text truncate">
 					{$settings.vaultPath}
@@ -138,10 +196,28 @@
 				class="w-full bg-bg-tertiary text-text border border-border rounded-lg px-4 py-2.5
 					text-sm focus:outline-none focus:border-accent"
 			>
-				<option value="second">Second person — "You decided..."</option>
-				<option value="first">First person — "I decided..."</option>
+				<option value="second">AI writing about you — "You decided to use React..."</option>
+				<option value="first">As if you wrote it — "I decided to use React..."</option>
+				<option value="plural">Collaborative — "We decided to use React..."</option>
 			</select>
-			<p class="text-[11px] text-text-secondary">How extracted notes and journal entries are written.</p>
+			<p class="text-[11px] text-text-secondary">Voice used for auto-generated notes and journal entries. "I" and "We" always refer to you, never the AI.</p>
+		</div>
+
+		<!-- Journal Title Format -->
+		<div class="space-y-2">
+			<label class="block text-xs text-text-secondary" for="settings-journal-format">Journal Title Format</label>
+			<select
+				id="settings-journal-format"
+				value={$settings.journalFormat || 'YYYY-MM-DD'}
+				onchange={updateJournalFormat}
+				class="w-full bg-bg-tertiary text-text border border-border rounded-lg px-4 py-2.5
+					text-sm focus:outline-none focus:border-accent"
+			>
+				{#each JOURNAL_FORMATS as fmt}
+					<option value={fmt.id}>{fmt.label} — {fmt.example}</option>
+				{/each}
+			</select>
+			<p class="text-[11px] text-text-secondary">Filename format for daily journal entries. New entries use this format; existing files are preserved.</p>
 		</div>
 
 		<!-- Clear Chat -->

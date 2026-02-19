@@ -2,7 +2,9 @@
 
 ## Overview
 
-Mycelia (mycelia.garden) is a conversation-first personal knowledge base built as a local-first desktop app. The user chats with an AI; a second AI automatically extracts, organizes, and writes that conversation into an Obsidian-compatible markdown vault.
+Mycelia (mycelia.garden) is a conversation-first personal knowledge base. The user chats with an AI; a second AI automatically extracts, organizes, and writes that conversation into an Obsidian-compatible markdown vault.
+
+The product ships as a local-first desktop app (Tauri) with an optional cloud tier that adds a web interface, cross-device sync, and managed AI. The desktop app also exposes an MCP server so Claude.ai Desktop can natively access the user's vault, graph, and RAG tools.
 
 ## Stack
 
@@ -13,12 +15,19 @@ Mycelia (mycelia.garden) is a conversation-first personal knowledge base built a
 - **Persistence**: tauri-plugin-store (settings), tauri-plugin-fs (vault markdown files)
 - **Package manager**: bun (never npm)
 
+## Business model
+
+- **Free**: Local model (Ollama), core vault + graph features, no account required
+- **$99 one-time**: BYOK (user's own Anthropic key), full Claude access, all future updates free
+- **Subscription**: Managed Claude API, cloud sync, web interface, MCP integration
+
 ## Key constraints
 
 - All vault output must be plain markdown with YAML frontmatter and `[[wikilinks]]` — Obsidian-compatible, no proprietary format.
-- No Mycelia server. API calls go directly from the Tauri WebView to Anthropic. The user brings their own API key.
+- Desktop app works fully offline with no account. API calls go directly from the Tauri WebView to Anthropic (BYOK) or to a local Ollama instance (free tier).
 - Vault is a user-selected directory. The app must never assume a fixed path.
-- Settings and chat history are local-only. Nothing leaves the machine except Anthropic API calls.
+- Settings and chat history are local-only on the desktop tier. Cloud tier adds optional sync.
+- MCP server exposes vault tools to Claude.ai Desktop — no API key needed for MCP users (they use their own Claude subscription).
 
 ## Architecture decisions
 
@@ -39,13 +48,13 @@ src/routes/         — SvelteKit pages (chat, graph, settings)
 src-tauri/src/      — Rust: plugin registration only (lib.rs + main.rs)
 ```
 
-## Active priorities (as of 2026-02-19)
+## Roadmap phases
 
-1. Vector search to replace context stuffing (biggest architectural gap)
-2. Note browser / viewer inside the app
-3. Full-text vault search
-4. Multi-conversation support
-5. System tray + background mode
+**Phase 1 — Desktop MVP** (ship the $99 product): Vector search, note browser, full-text search, Ollama integration, multi-conversation support.
+
+**Phase 2 — MCP Integration**: Build and ship the MCP server so Claude.ai Desktop users get native vault access. Key differentiator — very few tools offer this yet.
+
+**Phase 3 — Cloud & Web**: Auth, sync infrastructure (CRDTs), web interface (SvelteKit), managed API backend, mobile companion.
 
 See TODO.md for the full task list.
 

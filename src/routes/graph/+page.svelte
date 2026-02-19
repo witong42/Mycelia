@@ -27,9 +27,9 @@
 	});
 </script>
 
-<div class="flex flex-col h-full">
+<div class="flex flex-col h-full min-h-0">
 	<!-- Header -->
-	<div class="flex items-center justify-between px-6 py-3 border-b border-border">
+	<div class="flex items-center justify-between px-6 py-3 border-b border-border shrink-0">
 		<h1 class="text-sm font-medium text-text">Knowledge Graph</h1>
 		{#if graphData}
 			<span class="text-xs text-text-secondary">
@@ -39,7 +39,7 @@
 	</div>
 
 	<!-- Legend -->
-	<div class="flex gap-4 px-6 py-2 border-b border-border">
+	<div class="flex gap-4 px-6 py-2 border-b border-border shrink-0">
 		{#each Object.entries(FOLDER_COLORS) as [folder, color]}
 			{#if folder !== 'root'}
 				<span class="flex items-center gap-1.5 text-xs text-text-secondary">
@@ -51,7 +51,7 @@
 	</div>
 
 	<!-- Graph -->
-	<div class="flex-1 relative">
+	<div class="flex-1 min-h-0 relative">
 		{#if loading}
 			<div class="flex items-center justify-center h-full">
 				<span class="text-text-secondary text-sm">Loading graph...</span>

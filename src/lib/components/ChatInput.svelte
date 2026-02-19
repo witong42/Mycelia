@@ -1,4 +1,4 @@
-<!-- ChatInput — text input with send button. Enter to send, Shift+Enter for newline. -->
+<!-- ChatInput — ChatGPT-style pill input with send button. -->
 <script lang="ts">
 	import { isLoading } from '$lib/stores/chat';
 
@@ -29,27 +29,32 @@
 	}
 </script>
 
-<div class="border-t border-border bg-bg-secondary p-4">
-	<div class="flex gap-3 items-end max-w-3xl mx-auto">
-		<textarea
-			bind:this={textarea}
-			bind:value
-			onkeydown={handleKeydown}
-			oninput={autoResize}
-			placeholder={$isLoading ? 'Thinking...' : 'Talk to Mycelia...'}
-			disabled={$isLoading}
-			rows="1"
-			class="flex-1 bg-bg-tertiary text-text border border-border rounded-xl px-4 py-3
-				resize-none text-sm placeholder-text-secondary focus:outline-none focus:border-accent
-				disabled:opacity-50 transition-colors"
-		></textarea>
-		<button
-			onclick={send}
-			disabled={!value.trim() || $isLoading}
-			class="px-4 py-3 bg-accent text-white rounded-xl text-sm font-medium
-				hover:bg-accent-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-		>
-			Send
-		</button>
+<div class="p-4 pb-6">
+	<div class="max-w-3xl mx-auto">
+		<div class="flex items-end gap-2 bg-bg-secondary border border-border rounded-3xl px-4 py-2.5">
+			<textarea
+				bind:this={textarea}
+				bind:value
+				onkeydown={handleKeydown}
+				oninput={autoResize}
+				placeholder={$isLoading ? 'Thinking...' : 'Talk to Mycelia...'}
+				disabled={$isLoading}
+				rows="1"
+				class="flex-1 bg-transparent text-text text-sm resize-none border-none
+					focus:outline-none placeholder-text-secondary
+					disabled:opacity-50 leading-relaxed"
+			></textarea>
+			<button
+				onclick={send}
+				disabled={!value.trim() || $isLoading}
+				aria-label="Send message"
+				class="w-8 h-8 rounded-full bg-accent flex items-center justify-center shrink-0
+					hover:bg-accent-hover disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+			>
+				<svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
+				</svg>
+			</button>
+		</div>
 	</div>
 </div>

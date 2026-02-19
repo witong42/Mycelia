@@ -1,28 +1,28 @@
-<!-- ChatMessage — renders a single user or assistant message bubble. -->
+<!-- ChatMessage — ChatGPT-style message layout with markdown rendering. -->
 <script lang="ts">
 	import type { ChatMessage } from '$lib/stores/chat';
+	import { marked } from 'marked';
 
 	let { message }: { message: ChatMessage } = $props();
 
-	function formatTime(timestamp: number): string {
-		return new Date(timestamp).toLocaleTimeString('en-US', {
-			hour: '2-digit',
-			minute: '2-digit',
-			hour12: true
-		});
+	function renderMarkdown(content: string): string {
+		return marked.parse(content, { async: false }) as string;
 	}
 </script>
 
-<div class="flex {message.role === 'user' ? 'justify-end' : 'justify-start'} mb-3">
-	<div
-		class="max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap
-			{message.role === 'user'
-				? 'bg-user-bubble text-text rounded-br-md'
-				: 'bg-assistant-bubble text-text rounded-bl-md border border-border'}"
-	>
-		{message.content}
-		<div class="text-[10px] text-text-secondary mt-1 {message.role === 'user' ? 'text-right' : 'text-left'}">
-			{formatTime(message.timestamp)}
+{#if message.role === 'user'}
+	<div class="flex justify-end mb-6">
+		<div class="max-w-[70%] bg-user-bubble text-text rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap">
+			{message.content}
 		</div>
 	</div>
-</div>
+{:else}
+	<div class="flex gap-3 mb-6">
+		<div class="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center shrink-0 mt-0.5">
+			<span class="text-accent text-[10px] font-bold">M</span>
+		</div>
+		<div class="prose text-sm leading-relaxed flex-1 min-w-0">
+			{@html renderMarkdown(message.content)}
+		</div>
+	</div>
+{/if}

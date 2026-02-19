@@ -1,62 +1,90 @@
 # Mycelia — TODO
 
-Tasks are ordered roughly by priority. Items marked **[MVP]** are the most important for a first public release.
+Tasks are grouped by phase. Items marked **[MVP]** are required for the first public desktop release. Items marked **[CLOUD]** are for the subscription tier.
 
 ---
 
-## In progress / next up
+## Phase 1 — Desktop MVP (ship the $99 product)
 
-- [ ] **[MVP] Vector search for RAG** — Replace context stuffing with proper embedding-based retrieval. The current approach loads every note into the prompt, which works for small vaults but breaks down at scale. Store embeddings locally (sqlite-vec or similar) and retrieve only the top-K relevant chunks per query.
+### In progress / next up
 
-- [ ] **[MVP] Note browser / viewer** — Users can't read their vault inside the app right now. Add a notes panel that lists vault files by folder, lets you open and read them, and highlights wikilinks. Clicking a wikilink should navigate to that note.
+- [ ] **[MVP] Vector search for RAG** — Replace context stuffing with proper embedding-based retrieval. Store embeddings locally (sqlite-vec or similar) and retrieve only the top-K relevant chunks per query. The current approach loads every note into the prompt, which breaks at scale.
 
-- [ ] **[MVP] Full-text search** — Search across all vault markdown files by keyword. A simple grep-style scan is fine initially; can be replaced with indexed search later.
+- [ ] **[MVP] Note browser / viewer** — Users can't read their vault inside the app. Add a notes panel that lists vault files by folder, lets you open and read them, and highlights wikilinks. Clicking a wikilink should navigate to that note.
 
----
+- [ ] **[MVP] Full-text search** — Search across all vault markdown files by keyword. Simple grep-style scan initially; can be replaced with indexed search later.
 
-## Features
+### Core features
 
-- [ ] **Multi-conversation support** — Right now there is one conversation. Add named conversations/sessions, each with its own chat history, so users can keep separate threads (work, personal, projects, etc.).
+- [ ] **[MVP] Multi-conversation support** — Add named conversations/sessions, each with its own chat history. Users need separate threads for work, personal, projects, etc.
+
+- [ ] **[MVP] Ollama / local model integration** — Add support for local models via Ollama as the free tier backend. Users who don't want to pay for anything get a working product with llama/mistral. Model selection in settings alongside the Claude options.
+
+- [ ] **[MVP] Settings validation** — Validate API key format on entry (starts with `sk-ant-`) and test it with a cheap API call before accepting. Show clear errors for invalid keys. Also validate Ollama connection when local model is selected.
 
 - [ ] **System tray** — Run Mycelia in the background. A tray icon lets the user open the window or start a quick capture without bringing up the full app.
 
-- [ ] **Auto-update** — Implement `tauri-plugin-updater` so the app can update itself. Ship update manifests to a static hosting endpoint.
+- [ ] **Auto-update** — Implement `tauri-plugin-updater` so the app can update itself. Ship update manifests to a static hosting endpoint. Updates are free forever.
 
-- [ ] **App icon and branding** — Replace the placeholder Tauri icons with real Mycelia branding. Design a proper icon for macOS, Windows, and Linux.
-
-- [ ] **Mobile companion** — A minimal iOS/Android app or share extension that lets users send a note or voice memo to the Mycelia vault. Likely a separate project that targets the same vault format.
+- [ ] **App icon and branding** — Replace placeholder Tauri icons with real Mycelia branding. Design a proper icon for macOS, Windows, and Linux.
 
 - [ ] **Note editing** — Allow the user to edit a note directly in the app. Edits write back to the markdown file on disk.
 
-- [ ] **Wikilink navigation in graph** — Clicking a node in the graph view should open that note in a side panel rather than just logging to console.
+- [ ] **Wikilink navigation in graph** — Clicking a node in the graph view should open that note in a side panel.
 
-- [ ] **Conversation export** — Export a conversation as markdown or plain text. Useful for archiving or sharing.
+- [ ] **Conversation export** — Export a conversation as markdown or plain text.
 
-- [ ] **Vault sync** — Optional sync to a remote (iCloud, Dropbox, or git). The vault is already a plain folder so this may just be documentation, but a git-based auto-commit option would be useful.
+---
+
+## Phase 2 — MCP Integration (the Claude-native experience)
+
+- [ ] **MCP server implementation** — Build an MCP server (Node sidecar or Rust native) that exposes the vault as MCP tools. Core tools to expose:
+  - **File access**: read/write markdown notes in the vault
+  - **Search/retrieval**: RAG pipeline as a tool (vector search + full-text)
+  - **Graph traversal**: query wikilink relationships, find connected notes, traverse the knowledge graph
+  - **Memory**: custom memory tools backed by the vault
+
+- [ ] **MCP server auto-start** — The MCP server starts automatically with the Tauri app and registers itself so Claude.ai Desktop can discover and connect to it.
+
+- [ ] **MCP tool schema design** — Design the tool schemas that Claude.ai will use to interact with the vault. Keep them simple and composable: `read_note`, `search_notes`, `list_notes`, `get_connections`, `write_note`, etc.
+
+- [ ] **MCP documentation / onboarding** — Guide users through connecting Claude.ai Desktop to Mycelia's MCP server. In-app instructions and a setup wizard.
+
+---
+
+## Phase 3 — Cloud & Web (the subscription product)
+
+- [ ] **[CLOUD] Auth system** — User accounts for the cloud tier. Email + password or OAuth. Required for sync, web access, and managed API.
+
+- [ ] **[CLOUD] Sync infrastructure** — Bidirectional vault sync between desktop and cloud. CRDTs (Yjs or Automerge) for conflict resolution when two devices edit the same note. Backend storage on S3/R2/Supabase.
+
+- [ ] **[CLOUD] Web interface** — A SvelteKit web app that provides the same vault, graph, and chat experience as the desktop app. Shares Svelte components with the Tauri frontend. Accessible from any browser or phone.
+
+- [ ] **[CLOUD] Managed API backend** — Server-side Claude API integration for subscription users. Users get Claude without managing their own key. Needs usage metering and rate limiting.
+
+- [ ] **[CLOUD] Mobile companion** — A minimal iOS/Android app or PWA that lets users chat with their vault, send quick notes, or capture voice memos. Targets the same synced vault.
 
 ---
 
 ## Quality and reliability
 
-- [ ] **Better error handling** — The background extraction and journal tasks currently surface errors as a dismissable toast. Add a proper error log view and retry mechanism for failed writes.
+- [ ] **Better error handling** — Add a proper error log view and retry mechanism for failed writes. The background extraction and journal tasks currently only surface errors as dismissable toasts.
 
 - [ ] **Extraction reliability** — The parser that splits Claude's output into note blocks is fragile. Add validation, better fallback handling, and logging of raw extraction responses for debugging.
 
-- [ ] **Test coverage** — No tests exist. Add unit tests for the pure functions in `parser.ts`, `graph.ts`, and `rag.ts` (retrieval pattern matching). Add integration tests for the extraction pipeline using fixture conversations.
+- [ ] **Test coverage** — No tests exist. Add unit tests for the pure functions in `parser.ts`, `graph.ts`, and `rag.ts`. Add integration tests for the extraction pipeline using fixture conversations.
 
 - [ ] **TypeScript strictness** — Several `any` casts exist in `GraphView.svelte` due to the force-graph library's untyped API. Wrap the library with a typed adapter.
 
-- [ ] **Settings validation** — Validate the API key format on entry (starts with `sk-ant-`) and test it with a cheap API call before accepting it. Show a clear error if the key is invalid.
-
 - [ ] **Stale vault path handling** — If the vault directory is moved or deleted, the app shows a generic error. Improve this to guide the user through reselecting the vault.
 
-- [ ] **Extraction deduplication** — The model sometimes creates duplicate notes for the same topic with slightly different filenames. Add a deduplication pass that compares filenames before writing.
+- [ ] **Extraction deduplication** — The model sometimes creates duplicate notes for the same topic. Add a deduplication pass that compares filenames before writing.
 
 ---
 
 ## Performance
 
-- [ ] **Lazy vault loading** — `readAllNotes` loads all vault files into memory for RAG. This is fine up to a few hundred notes but will be slow on large vaults. Switch to streaming/chunked reads and index on a background thread.
+- [ ] **Lazy vault loading** — `readAllNotes` loads all vault files into memory for RAG. Switch to streaming/chunked reads and index on a background thread.
 
 - [ ] **Graph performance** — The force-graph simulation can become sluggish with hundreds of nodes. Add a node-count threshold that switches to a simplified rendering mode.
 

@@ -3,6 +3,7 @@
 import { extractWikilinks, extractFrontmatter, getFolderFromPath } from './parser';
 
 export interface GraphNode {
+	[key: string]: unknown;
 	id: string;
 	name: string;
 	folder: string;
@@ -10,6 +11,7 @@ export interface GraphNode {
 }
 
 export interface GraphLink {
+	[key: string]: unknown;
 	source: string;
 	target: string;
 }
@@ -21,13 +23,19 @@ export interface GraphData {
 
 /** Folder-to-color mapping for graph visualization. */
 export const FOLDER_COLORS: Record<string, string> = {
-	journals: '#f59e0b',
-	topics: '#3b82f6',
-	people: '#10b981',
-	projects: '#8b5cf6',
-	decisions: '#ef4444',
-	ideas: '#ec4899',
-	root: '#6b7280'
+	// Logseq folders
+	pages: '#7dd3fc', // sky-300
+	journals: '#fcd34d', // amber-300
+	assets: '#c4b5fd', // violet-300
+	draws: '#f9a8d4', // pink-300
+	whiteboards: '#6ee7b7', // emerald-300
+	// Mycelia folders
+	topics: '#7dd3fc',
+	people: '#6ee7b7',
+	projects: '#c4b5fd',
+	decisions: '#fca5a5', // red-300
+	ideas: '#f9a8d4',
+	root: '#cbd5e1' // slate-300
 };
 
 /** Build graph data from vault notes. */
